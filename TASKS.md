@@ -11,8 +11,9 @@
 - [x] `algorithms/astar.py`: manual A* using `common.RouteResult` / `reconstruct_path`
 - [x] Straight-line-distance / max-speed admissible (and consistent) heuristic
 - [x] `Graph.max_speed` property added; `generator.py` updated so road distance >= straight-line coordinate distance (required for heuristic admissibility — see PROJECT_CONTEXT.md)
-- [x] Tests: A* correctness (7 tests in `test_astar.py`), A* vs Dijkstra equal cost on same graph + with traffic/closures + when unreachable, randomized multi-pair comparison (`test_algorithm_comparison.py`, 5 tests)
-- [x] 33/33 pytest tests passing
+- [x] Tests: A* correctness (8 tests in `test_astar.py`), A* vs Dijkstra equal cost on same graph + with traffic/closures + when unreachable, randomized multi-pair comparison (`test_algorithm_comparison.py`, 5 tests)
+- [x] Congestion-multiplier `>= 1.0` invariant enforced in `Road.__post_init__` and `Graph.set_congestion` (was previously only `> 0`, which could have broken A* admissibility); covered by 2 new tests in `test_graph.py`
+- [x] 35/35 pytest tests passing (verified breakdown: test_graph 9, test_generator 5, test_dijkstra 8, test_astar 8, test_algorithm_comparison 5)
 
 ## Phase 3 — Dynamic traffic & rerouting
 - [ ] `services/traffic.py`: traffic update / close / reopen orchestration (thin wrapper over Graph methods + validation)

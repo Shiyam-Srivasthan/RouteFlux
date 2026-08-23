@@ -52,10 +52,11 @@ backend/
 - `Graph.max_speed` = max road speed in the graph, used as the heuristic's speed denominator so `h(n)` never overestimates remaining travel time.
 - Because Euclidean distance satisfies the triangle inequality, this heuristic is not just admissible but **consistent**, so A* can close a node permanently the first time it's popped (same lazy-deletion pattern as Dijkstra) without needing to reopen nodes.
 - Proof sketch lives as a docstring in `astar.py`.
+- **`congestion_multiplier` is constrained to `>= 1.0`**, enforced in both `Road.__post_init__` (models.py) and `Graph.set_congestion` (graph.py). Congestion can only slow a road down from its free-flow time, never speed it up — this is what makes `effective_time >= straight_line/max_speed` hold for every possible traffic state, which the admissibility proof above depends on. A value below 1.0 raises `ValueError`.
 
 ## Status
 - **Phase 1 (verified by user, 20/20 tests):** graph model, road model, synthetic grid generator, manual Dijkstra.
-- **Phase 2 (done, awaiting user test confirmation):** manual A*, admissible/consistent heuristic, Dijkstra-vs-A* correctness tests including a randomized multi-pair property test. 33 pytest tests passing total (13 new).
+- **Phase 2 (done, awaiting user test confirmation):** manual A*, admissible/consistent heuristic, Dijkstra-vs-A* correctness tests including a randomized multi-pair property test, congestion-multiplier >= 1.0 invariant enforced and tested. 35 pytest tests passing total.
 - Phase 3: dynamic traffic / closures / rerouting service layer — not started (Graph already supports the primitives; services/ layer not built).
 - Phase 4: FastAPI endpoints — not started.
 - Phase 5: React frontend — not started.

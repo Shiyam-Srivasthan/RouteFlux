@@ -34,6 +34,23 @@ def test_road_rejects_non_positive_distance_or_speed():
         Road(source=1, destination=2, distance=10, speed=0)
 
 
+def test_road_rejects_congestion_multiplier_below_one():
+    """Congestion must never speed a road up past its free-flow time — the A*
+    heuristic (straight_line / max_speed) is only a valid lower bound because
+    effective_time can never drop below base_time."""
+    with pytest.raises(ValueError):
+        Road(source=1, destination=2, distance=10, speed=50, congestion_multiplier=0.5)
+    # exactly 1.0 (free-flow / normal traffic) is allowed
+    road = Road(source=1, destination=2, distance=10, speed=50, congestion_multiplier=1.0)
+    assert road.congestion_multiplier == 1.0
+
+
+def test_set_congestion_rejects_multiplier_below_one():
+    g = make_simple_graph()
+    with pytest.raises(ValueError):
+        g.set_congestion(1, 2, 0.8)
+
+
 def test_effective_time_reflects_congestion():
     road = Road(source=1, destination=2, distance=100, speed=50, congestion_multiplier=2.0)
     assert road.base_time == 2.0

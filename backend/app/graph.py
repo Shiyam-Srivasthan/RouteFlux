@@ -41,8 +41,8 @@ class Graph:
         road = self.get_road(source, destination)
         if road is None:
             raise ValueError(f"No road from {source} to {destination}")
-        if multiplier <= 0:
-            raise ValueError("Congestion multiplier must be positive")
+        if multiplier < 1.0:
+            raise ValueError("Congestion multiplier must be >= 1.0 (traffic can only slow roads down)")
         road.congestion_multiplier = multiplier
 
     def close_road(self, source: int, destination: int) -> None:
