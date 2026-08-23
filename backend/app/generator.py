@@ -32,13 +32,18 @@ def generate_grid_graph(rows: int, cols: int, seed: int = 42, cell_distance: flo
     for r in range(rows):
         for c in range(cols):
             node_id = r * cols + c
-            graph.add_node(Node(id=node_id, x=float(c), y=float(r)))
+            # coordinates live in the same distance units as Road.distance,
+            # so straight-line distance is a valid basis for the A* heuristic.
+            graph.add_node(Node(id=node_id, x=c * cell_distance, y=r * cell_distance))
 
     levels = list(CONGESTION_WEIGHTS.keys())
     weights = list(CONGESTION_WEIGHTS.values())
 
     def add_edge(a: int, b: int) -> None:
-        distance = round(cell_distance * rng.uniform(0.85, 1.15), 2)
+        straight_line = math.hypot(graph.nodes[a].x - graph.nodes[b].x, graph.nodes[a].y - graph.nodes[b].y)
+        # real roads are never shorter than the straight line between endpoints;
+        # the >=1.0 detour factor keeps the A* heuristic admissible by construction.
+        distance = round(straight_line * rng.uniform(1.0, 1.3), 2)
         speed = rng.choice(SPEED_CHOICES)
         congestion = CONGESTION_LEVELS[rng.choices(levels, weights=weights, k=1)[0]]
         graph.add_road(

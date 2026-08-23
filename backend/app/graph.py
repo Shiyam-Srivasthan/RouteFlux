@@ -68,3 +68,9 @@ class Graph:
     @property
     def roads(self) -> list[Road]:
         return list(self._roads.values())
+
+    @property
+    def max_speed(self) -> float:
+        """Fastest speed of any road in the graph; used as the A* heuristic denominator."""
+        speeds = [road.speed for road in self._roads.values()]
+        return max(speeds) if speeds else 1.0

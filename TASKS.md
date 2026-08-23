@@ -7,10 +7,12 @@
 - [x] Manual Dijkstra with heap, stale-entry handling, path reconstruction, nodes_explored, runtime_ms
 - [x] 20 pytest tests (graph, generator, dijkstra) — all passing
 
-## Phase 2 — A*, heuristic, correctness comparison
-- [ ] `algorithms/astar.py`: manual A* using `common.RouteResult` / `reconstruct_path`
-- [ ] Straight-line-distance / max-speed admissible heuristic
-- [ ] Tests: A* correctness, A* vs Dijkstra equal cost on same graph, randomized multi-pair comparison
+## Phase 2 — A*, heuristic, correctness comparison (DONE, awaiting user verification)
+- [x] `algorithms/astar.py`: manual A* using `common.RouteResult` / `reconstruct_path`
+- [x] Straight-line-distance / max-speed admissible (and consistent) heuristic
+- [x] `Graph.max_speed` property added; `generator.py` updated so road distance >= straight-line coordinate distance (required for heuristic admissibility — see PROJECT_CONTEXT.md)
+- [x] Tests: A* correctness (7 tests in `test_astar.py`), A* vs Dijkstra equal cost on same graph + with traffic/closures + when unreachable, randomized multi-pair comparison (`test_algorithm_comparison.py`, 5 tests)
+- [x] 33/33 pytest tests passing
 
 ## Phase 3 — Dynamic traffic & rerouting
 - [ ] `services/traffic.py`: traffic update / close / reopen orchestration (thin wrapper over Graph methods + validation)
@@ -34,4 +36,4 @@
 - [ ] Final README, cleanup
 
 ## Next step
-Waiting on user to run Phase 1 verification commands before starting Phase 2.
+Waiting on user to run Phase 2 verification commands before starting Phase 3.
