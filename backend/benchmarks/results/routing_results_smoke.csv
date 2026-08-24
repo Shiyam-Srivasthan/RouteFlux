@@ -1,0 +1,5 @@
+graph_nodes,graph_edges,num_routes,algorithm,mean_runtime_ms,median_runtime_ms,p95_runtime_ms,mean_nodes_explored,median_nodes_explored,mean_route_cost
+200,728,10,dijkstra,0.12276,0.1346,0.17699,69.6,64.5,0.343051
+200,728,10,astar,0.10106,0.1105,0.14121,34.8,37.0,0.343051
+800,3024,10,dijkstra,0.66495,0.6046,1.12166,420.6,428.5,0.826572
+800,3024,10,astar,0.57964,0.5335,0.98433,238.4,235.0,0.826572

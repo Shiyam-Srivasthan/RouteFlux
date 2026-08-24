@@ -9,4 +9,4 @@ dist/
 build/
 .env
 *.csv
-!benchmarks/**/*.csv
+!backend/benchmarks/results/*.csv

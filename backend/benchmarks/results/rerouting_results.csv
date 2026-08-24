@@ -1,0 +1,3 @@
+graph_nodes,algorithm,num_scenarios,closures,congestion_increases,mean_rerouting_latency_ms,p95_rerouting_latency_ms,pct_path_changed
+10000,dijkstra,40,20,20,11.32621,26.99971,100.0
+10000,astar,40,20,20,9.24356,22.45111,100.0

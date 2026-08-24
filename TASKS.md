@@ -43,10 +43,16 @@
 - [x] `npm run build` succeeds; verified end-to-end with headless Playwright (scratch install, not a project dependency) against the running dev server — graph render, route+highlight, traffic/closure/reopen/reroute, algorithm switch, zero console errors; screenshots reviewed
 - [x] Backend re-verified: 74/74 pytest tests still passing (no backend code changed this phase)
 
-## Phase 6 — Benchmarks & polish
-- [ ] `backend/benchmarks/` script: 1K/5K/10K/25K/50K nodes, mean/P95 runtime, mean nodes explored, route cost
-- [ ] CSV/Markdown export for README
-- [ ] Final README, cleanup
+## Phase 6 — Benchmarks & polish (DONE, awaiting user verification)
+- [x] `benchmarks/common.py`: environment info, percentile/summary-stats helpers, deterministic pair generator, CSV/Markdown writers (stdlib only)
+- [x] `benchmarks/benchmark_routing.py`: Dijkstra vs A* on 1K/5K/10K/25K/50K-node graphs (100/100/75/50/40 route pairs), calls `services/routing.compute_route` directly (no HTTP/UI), inline Dijkstra/A* cost-agreement + reachability check that halts the run on disagreement, `--smoke` mode
+- [x] `benchmarks/benchmark_rerouting.py`: 40 scenarios on a 10K-node graph, alternating road closure / ×10 congestion on the first edge of an already-computed route, measures recompute latency and whether the path changed, `--smoke` mode
+- [x] Full benchmark run executed; results written to `backend/benchmarks/results/{routing,rerouting}_results.{csv,md}` (and `*_smoke.*`) — not hand-typed
+- [x] Fixed two real bugs found while running this phase: Windows text-encoding mojibake in generated Markdown (`write_text`/`write_csv` now pass `encoding="utf-8"`), and a `.gitignore` negation pattern that never actually matched the results directory (fixed path, confirmed with `git add -n`)
+- [x] 5 new lightweight tests (`test_benchmark_utils.py`) for the percentile/pair-generation helpers — 79/79 pytest tests passing total (74 prior + 5 new); backend suite re-run before AND after adding benchmarks per the correctness-safeguard requirement
+- [x] `frontend`: `npm run build` re-confirmed succeeding (no frontend files touched this phase)
+- [x] `README.md` written: problem/solution/architecture/algorithms (incl. admissibility/consistency proof)/complexity (honest about A*'s worst-case bound)/correctness/actual benchmark tables/running instructions/limitations
+- [x] No application features added; no Dijkstra/A* algorithm code modified
 
 ## Next step
-Waiting on user to run Phase 5 verification commands before starting Phase 6.
+Waiting on user to review the benchmark results and README before considering the project complete. No further phases planned unless requested.

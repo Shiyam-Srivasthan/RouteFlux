@@ -46,8 +46,14 @@ backend/
     test_traffic_service.py         # services/traffic.py unit tests
     test_rerouting.py                # scenario tests: congestion flips route, closure/reopen, agreement after changes
     test_api.py                       # FastAPI TestClient tests for all 6 endpoints
+  benchmarks/
+    __init__.py
+    common.py             # environment_info, percentile, summary_stats, deterministic_pairs, write_csv, write_text
+    benchmark_routing.py   # Dijkstra vs A* across 1K/5K/10K/25K/50K-node graphs, direct algorithm-layer calls
+    benchmark_rerouting.py # rerouting latency on a 10K-node graph after edge closures/congestion spikes
+    results/                # generated CSV + Markdown output (routing_results.*, rerouting_results.*, *_smoke.*)
   requirements.txt      # pytest, fastapi, uvicorn, httpx
-  pytest.ini             # pythonpath = . (so `app.*` imports resolve)
+  pytest.ini             # pythonpath = . (so `app.*` and `benchmarks.*` imports resolve)
 
 frontend/
   package.json           # react, react-dom; vite, @vitejs/plugin-react (dev)
@@ -109,13 +115,24 @@ frontend/
 - API client (`src/api.js`) distinguishes network failure (fetch threw — "cannot reach backend") from HTTP error responses, and unpacks both plain-string `detail` (404s) and Pydantic's validation-error-array `detail` (422s) into a readable message; `App.jsx` surfaces every failure in a dismissible error banner — nothing is swallowed.
 - **Verified with Playwright** (headless Chromium, installed to a scratch dir, not a project dependency) driving the actual running dev server end-to-end: graph render (100 nodes/360 directed roads for a 10x10 grid), route computed and highlighted, road closed → route visibly rerouted (cost 0.7501h → 0.7707h) with the closed road rendered dashed, reopened → dashes cleared, algorithm switched to A* → same optimal cost recovered (0.7501h). Zero browser console errors across the run. Screenshots taken at each step.
 
+### Benchmarking (Phase 6) — key decisions
+- **Calls the algorithm layer directly** (`services/routing.compute_route`) — no FastAPI, no HTTP, no frontend. Each recorded latency is the `RouteResult.runtime_ms` already measured inside `dijkstra()`/`astar()` themselves (via `time.perf_counter()`, same mechanism tested since Phase 1/2) — the benchmark script never re-times the call itself, so graph generation, pair selection, and CSV/Markdown writing are structurally excluded from the reported numbers, not just "tried to be excluded."
+- **Correctness is re-verified inline, every run, not assumed**: every single benchmarked route pair is checked for `math.isclose` cost agreement between Dijkstra and A* (tolerance `1e-6`) and for reachability; either failing **raises immediately and halts the benchmark** rather than silently recording a bad result.
+- **Fixed seeds, documented**: `GRAPH_SEED = 42` (graph generation, same convention as the rest of the project) and a separate `PAIR_SEED` (source/destination selection) — kept as two independent RNG streams so pair selection can't accidentally perturb graph generation or vice versa.
+- **Route-pair counts** follow the task's suggested schedule: 100/100/75/50/40 for 1K/5K/10K/25K/50K nodes.
+- **Rerouting benchmark reuses the same live graph across all 40 scenarios** (no deep-copy per scenario) — each scenario mutates the *first* edge of the already-computed route (alternating close vs. ×10 congestion), measures the recompute, then explicitly reverts the mutation before the next scenario, so every scenario starts from the same baseline graph. This is a deliberate, documented choice, not an accident — it's why "% path changed" came back 100% (see README: mutating the very first hop out of the source on a 4-connected grid is close to guaranteed to force a different first choice).
+- **`--smoke` flag** on both scripts (small graphs/pair counts) validates the benchmark's own correctness cheaply before committing to the multi-minute full run — no source edits needed to switch modes.
+- **Windows text-encoding bug caught and fixed**: `Path.write_text()` without an explicit encoding used the system codepage (not UTF-8) and mangled the em-dashes in the generated Markdown into `�`. Fixed by passing `encoding="utf-8"` explicitly in `benchmarks/common.py`'s `write_csv`/`write_text` — worth remembering for any other file-writing code on Windows in this project.
+- **`.gitignore` bug caught and fixed**: the original `!benchmarks/**/*.csv` negation pattern is anchored to the repo root by its `.gitignore` location, so it never actually matched `backend/benchmarks/results/*.csv` (a directory one level deeper) — the generated benchmark CSVs were silently still ignored by the blanket `*.csv` rule above it. Fixed to `!backend/benchmarks/results/*.csv` and confirmed with `git add -n`.
+- Actual measured results (not fabricated, not pre-decided) are in `README.md`'s Benchmarks section and in `backend/benchmarks/results/*.csv`/`*.md`.
+
 ## Status
 - **Phase 1 (verified by user, 20/20 tests):** graph model, road model, synthetic grid generator, manual Dijkstra.
 - **Phase 2 (verified by user, 35/35 tests):** manual A*, admissible/consistent heuristic, Dijkstra-vs-A* correctness tests including a randomized multi-pair property test, congestion-multiplier >= 1.0 invariant enforced and tested.
 - **Phase 3 (verified by user, 55/55 tests):** `services/traffic.py` (congestion updates + close/open with validation), `services/routing.py` (algorithm dispatch), scenario tests proving congestion changes the selected route, closures are avoided, reopening restores the better route, and Dijkstra/A* still agree after traffic+closure changes applied via the service layer.
 - **Phase 4 (verified by user, 74/74 tests):** FastAPI app with all 6 endpoints, Pydantic request/response schemas, HTTP error handling, 19 API tests via `TestClient`.
-- **Phase 5 (done, awaiting user verification):** React/Vite single-page frontend — graph generation, source/destination/algorithm selection, route computation + SVG visualization, traffic simulation, road close/reopen, live rerouting. No backend code changed. Verified end-to-end with a headless-browser (Playwright) smoke run; backend's 74 pytest tests re-confirmed passing.
-- Phase 6: benchmarks, final tests, README — not started.
+- **Phase 5 (verified by user):** React/Vite single-page frontend — graph generation, source/destination/algorithm selection, route computation + SVG visualization, traffic simulation, road close/reopen, live rerouting. No backend code changed. Verified end-to-end with a headless-browser (Playwright) smoke run.
+- **Phase 6 (done, awaiting user verification):** `backend/benchmarks/` (routing + rerouting scripts, direct algorithm-layer calls, `--smoke` mode), actual measured results committed to `results/` and copied into `README.md`, 5 new lightweight benchmark-utility tests (79 total), full `README.md` (problem/solution/architecture/algorithms/complexity/correctness/benchmarks/running/limitations). No application features added; no algorithm code changed.
 
 ## Not in scope (explicit)
 No NetworkX for pathfinding, no DB/Redis/Docker/auth/cloud/Maps APIs/ML/microservices/Kafka/K8s unless requested.
