@@ -4,7 +4,7 @@ Dynamic traffic routing & rerouting engine. DSA-focused CV project.
 Manual Dijkstra + A* over a hand-built weighted graph (no NetworkX for pathfinding).
 
 ## Stack
-- Backend: Python, FastAPI (not added yet — Phase 4)
+- Backend: Python, FastAPI
 - Frontend: React (not added yet — Phase 5)
 - Algorithms: adjacency-list graph, `heapq`, manual Dijkstra/A*
 - Testing: pytest
@@ -32,6 +32,11 @@ backend/
       __init__.py
       traffic.py          # update_congestion, update_congestion_by_level, close_road, open_road
       routing.py          # compute_route(graph, source, destination, algorithm) dispatch
+    api/
+      __init__.py
+      schemas.py           # Pydantic request/response models (separate from domain dataclasses)
+      routes.py             # APIRouter: /graph/generate, /graph, /route, /traffic/update, /road/close, /road/open
+    main.py                # FastAPI app, CORS (allow all — dev project), app.state.graph holds the single in-memory Graph
   tests/
     test_graph.py
     test_generator.py
@@ -40,7 +45,8 @@ backend/
     test_algorithm_comparison.py   # Dijkstra vs A* equality, incl. randomized property test
     test_traffic_service.py         # services/traffic.py unit tests
     test_rerouting.py                # scenario tests: congestion flips route, closure/reopen, agreement after changes
-  requirements.txt      # pytest
+    test_api.py                       # FastAPI TestClient tests for all 6 endpoints
+  requirements.txt      # pytest, fastapi, uvicorn, httpx
   pytest.ini             # pythonpath = . (so `app.*` imports resolve)
 ```
 
@@ -65,11 +71,21 @@ backend/
 - `services/traffic.py` is a thin validating wrapper over `Graph.set_congestion` / `close_road` / `open_road`. Because roads are directed, all three take a `bidirectional: bool = False` param that also mirrors the change onto the reverse road (if one exists) — default is directional-only, matching the underlying `Graph` API; set `bidirectional=True` for "close this physical road both ways" semantics.
 - `services/routing.py` exposes `compute_route(graph, source, destination, algorithm="dijkstra"|"astar")` — a dispatch table (`ALGORITHMS`), nothing more.
 
+### API layer (Phase 4)
+- Graph state is a **single in-memory `Graph` on `app.state.graph`** — no DB. `POST /graph/generate` creates/replaces it; every other endpoint 404s with a clear message if it's `None`.
+- Endpoints: `POST /graph/generate`, `GET /graph`, `POST /route`, `POST /traffic/update`, `POST /road/close`, `POST /road/open` — all wired via `app/api/routes.py`'s `router`, included in `app/main.py`.
+- `/graph/generate` and the two `/road/*` and `/traffic/update` mutation endpoints all return the **full current `GraphOut`** (nodes + roads, roads include `effective_time`) so the frontend never needs a separate round trip to refresh state after a mutation.
+- Validation strategy: **Pydantic does the schema-level validation** (`AlgorithmName` enum for `algorithm` → 422 on bad value; `multiplier: float = Field(ge=1.0)` on `TrafficUpdateRequest` → 422 below 1.0; `rows`/`cols` bounded `[1, 100]` on generate → 422). **Domain-level validation** (unknown node id, no road between two nodes) surfaces as `ValueError` from the existing `Graph`/`services` layer and is caught per-endpoint and translated to `HTTPException(404, ...)` — chosen because these are all "referenced entity doesn't exist" errors.
+- `RouteResponse.cost` is `Optional[float]` (`None` when unreachable) rather than `Infinity`, because `Infinity` is not valid JSON and `JSON.parse` in the browser would throw. `reachable: bool` is included explicitly rather than making the frontend infer it from `path == []`.
+- Congestion API only accepts a raw `multiplier` (no `level` name endpoint) to keep the contract minimal — `services.traffic.update_congestion_by_level` still exists for internal/future use, but a level→multiplier dropdown is just as easy to build client-side in Phase 5.
+- CORS is wide open (`allow_origins=["*"]`) since this is a local dev project with no auth/cookies.
+- `tests/test_api.py` uses an `autouse` fixture that resets `app.state.graph = None` before every test, since `TestClient(app)` shares one `app` singleton across the whole test module — without this, tests would be order-dependent.
+
 ## Status
 - **Phase 1 (verified by user, 20/20 tests):** graph model, road model, synthetic grid generator, manual Dijkstra.
 - **Phase 2 (verified by user, 35/35 tests):** manual A*, admissible/consistent heuristic, Dijkstra-vs-A* correctness tests including a randomized multi-pair property test, congestion-multiplier >= 1.0 invariant enforced and tested.
-- **Phase 3 (done, awaiting user test confirmation):** `services/traffic.py` (congestion updates + close/open with validation), `services/routing.py` (algorithm dispatch), scenario tests proving congestion changes the selected route, closures are avoided, reopening restores the better route, and Dijkstra/A* still agree after traffic+closure changes applied via the service layer. 55 pytest tests passing total.
-- Phase 4: FastAPI endpoints — not started.
+- **Phase 3 (verified by user, 55/55 tests):** `services/traffic.py` (congestion updates + close/open with validation), `services/routing.py` (algorithm dispatch), scenario tests proving congestion changes the selected route, closures are avoided, reopening restores the better route, and Dijkstra/A* still agree after traffic+closure changes applied via the service layer.
+- **Phase 4 (done, awaiting user test confirmation):** FastAPI app with all 6 endpoints, Pydantic request/response schemas, HTTP error handling, 19 new API tests via `TestClient`. 74 pytest tests passing total.
 - Phase 5: React frontend — not started.
 - Phase 6: benchmarks, final tests, README — not started.
 

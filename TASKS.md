@@ -22,11 +22,14 @@
 - [x] Tests (`test_rerouting.py`, 11): baseline cheaper-path selection, congestion change flips selected route, closed road avoided, reopening restores cheaper route, closure-with-no-alternative reports unreachable, unknown-algorithm error, Dijkstra/A* agreement after combined traffic+closure changes via the service layer — parametrized over both algorithms where relevant
 - [x] 55/55 pytest tests passing (35 prior + 20 new)
 
-## Phase 4 — FastAPI
-- [ ] `models.py` pydantic request/response schemas (or api/schemas.py) — separate from domain dataclasses
-- [ ] Endpoints: POST /graph/generate, GET /graph, POST /route, POST /traffic/update, POST /road/close, POST /road/open
-- [ ] Request validation + HTTP error handling
-- [ ] Backend tests via FastAPI TestClient
+## Phase 4 — FastAPI (DONE, awaiting user verification)
+- [x] `api/schemas.py`: Pydantic request/response models, separate from domain dataclasses (`AlgorithmName` enum, `GraphGenerateRequest`, `NodeOut`/`RoadOut`/`GraphOut`, `RouteRequest`/`RouteResponse`, `TrafficUpdateRequest`, `RoadActionRequest`)
+- [x] `api/routes.py`: all 6 endpoints — POST /graph/generate, GET /graph, POST /route, POST /traffic/update, POST /road/close, POST /road/open
+- [x] `main.py`: FastAPI app, CORS (wide open, dev project), `app.state.graph` singleton
+- [x] Validation: Pydantic schema-level (algorithm enum, congestion >= 1.0, generate dimension bounds) → 422; domain-level (unknown node/road) caught as `ValueError` → 404
+- [x] `RouteResponse.cost` is nullable (not `Infinity`, which isn't valid JSON) with an explicit `reachable` bool
+- [x] 19 new tests in `test_api.py` via `TestClient` — generate/validate, GET before/after generate, route via both algorithms + agreement check, unreachable/unknown-node/invalid-algorithm errors, traffic update changing a later route, close+reopen restoring the original route, unknown-road errors, before-graph-generated 404s
+- [x] 74/74 pytest tests passing (55 prior + 19 new)
 
 ## Phase 5 — React frontend
 - [ ] Graph visualization (small grid), route/congestion/closure rendering
@@ -39,4 +42,4 @@
 - [ ] Final README, cleanup
 
 ## Next step
-Waiting on user to run Phase 3 verification commands before starting Phase 4.
+Waiting on user to run Phase 4 verification commands before starting Phase 5.
