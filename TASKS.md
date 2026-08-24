@@ -31,10 +31,17 @@
 - [x] 19 new tests in `test_api.py` via `TestClient` — generate/validate, GET before/after generate, route via both algorithms + agreement check, unreachable/unknown-node/invalid-algorithm errors, traffic update changing a later route, close+reopen restoring the original route, unknown-road errors, before-graph-generated 404s
 - [x] 74/74 pytest tests passing (55 prior + 19 new)
 
-## Phase 5 — React frontend
-- [ ] Graph visualization (small grid), route/congestion/closure rendering
-- [ ] Controls: generate graph, pick source/destination, algorithm toggle, simulate traffic, close/open road
-- [ ] Result panel: cost, runtime, nodes explored, algorithm
+## Phase 5 — React frontend (DONE, awaiting user verification)
+- [x] `frontend/` scaffolded with Vite + React (no Redux/Zustand/D3/Leaflet/Mapbox), `src/api.js` client layer using `VITE_API_URL` (default `http://127.0.0.1:8000`)
+- [x] `ControlPanel.jsx`: rows/cols/seed + Generate Graph, source/destination dropdowns, Dijkstra/A* selector, Find Route
+- [x] `GraphVisualizer.jsx`: SVG, layout derived from `node.x`/`node.y` (no hard-coded positions), nodes as circles + labels, roads as offset parallel lines per direction, distinct styling for source/destination/route/congestion levels/closed roads/selected road, click-to-select a road
+- [x] `TrafficControls.jsx`: road dropdown (synced with SVG click), congestion-level dropdown (client-side preset mirroring backend `CONGESTION_LEVELS`), bidirectional checkbox, Close/Reopen Road buttons
+- [x] `MetricsPanel.jsx`: algorithm, reachable, cost, nodes explored, runtime_ms, path length; clear message (not invalid numbers) when unreachable
+- [x] Rerouting workflow: after any traffic/closure mutation, if a route was already computed it's silently recomputed via the same `/route` call — no new endpoint invented
+- [x] Auto-generates a default 10x10 seed-42 graph on load
+- [x] Error handling: network failures vs HTTP 404/422 both surfaced in a dismissible banner, nothing swallowed
+- [x] `npm run build` succeeds; verified end-to-end with headless Playwright (scratch install, not a project dependency) against the running dev server — graph render, route+highlight, traffic/closure/reopen/reroute, algorithm switch, zero console errors; screenshots reviewed
+- [x] Backend re-verified: 74/74 pytest tests still passing (no backend code changed this phase)
 
 ## Phase 6 — Benchmarks & polish
 - [ ] `backend/benchmarks/` script: 1K/5K/10K/25K/50K nodes, mean/P95 runtime, mean nodes explored, route cost
@@ -42,4 +49,4 @@
 - [ ] Final README, cleanup
 
 ## Next step
-Waiting on user to run Phase 4 verification commands before starting Phase 5.
+Waiting on user to run Phase 5 verification commands before starting Phase 6.

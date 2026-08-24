@@ -5,7 +5,7 @@ Manual Dijkstra + A* over a hand-built weighted graph (no NetworkX for pathfindi
 
 ## Stack
 - Backend: Python, FastAPI
-- Frontend: React (not added yet — Phase 5)
+- Frontend: React + Vite (plain hooks state, SVG visualization, no Redux/D3/Leaflet)
 - Algorithms: adjacency-list graph, `heapq`, manual Dijkstra/A*
 - Testing: pytest
 - Benchmarking: `time.perf_counter()`
@@ -48,6 +48,23 @@ backend/
     test_api.py                       # FastAPI TestClient tests for all 6 endpoints
   requirements.txt      # pytest, fastapi, uvicorn, httpx
   pytest.ini             # pythonpath = . (so `app.*` imports resolve)
+
+frontend/
+  package.json           # react, react-dom; vite, @vitejs/plugin-react (dev)
+  vite.config.js
+  index.html
+  .env.example            # VITE_API_URL=http://127.0.0.1:8000
+  src/
+    main.jsx
+    App.jsx               # all state lives here: graph, source/destination, algorithm, routeResult, selectedRoad, pending/error
+    api.js                # fetch wrapper: generateGraph, getGraph, computeRoute, updateTraffic, closeRoad, openRoad
+    congestion.js          # client-side mirror of backend CONGESTION_LEVELS (API only takes a raw multiplier) + congestionColor()
+    styles.css
+    components/
+      ControlPanel.jsx     # rows/cols/seed + Generate, source/destination + algorithm + Find Route
+      GraphVisualizer.jsx   # SVG: layout derived from node x/y, offset parallel lines per direction, route/congestion/closure/selection styling
+      TrafficControls.jsx   # road dropdown (synced with SVG click-to-select), congestion-level dropdown, close/open buttons
+      MetricsPanel.jsx       # algorithm, reachable, cost, nodes_explored, runtime_ms, path length
 ```
 
 ## Design decisions worth remembering
@@ -81,12 +98,23 @@ backend/
 - CORS is wide open (`allow_origins=["*"]`) since this is a local dev project with no auth/cookies.
 - `tests/test_api.py` uses an `autouse` fixture that resets `app.state.graph = None` before every test, since `TestClient(app)` shares one `app` singleton across the whole test module — without this, tests would be order-dependent.
 
+### Frontend (Phase 5) — key decisions
+- **All state lives in `App.jsx`** (plain `useState`/`useCallback`, no Redux/Zustand) and is passed down as props — 4 small presentational components, no context/store layer. Justified by the component tree size (4 components); would revisit only if the tree grew significantly.
+- **No separate rerouting call.** After `handleApplyTraffic`/`handleCloseRoad`/`handleOpenRoad` succeeds and updates `graph`, `rerouteIfActive()` calls the *same* `findRoute()` used by the "Find Route" button — if a route was already computed, it's silently recomputed via `POST /route` so the UI visibly updates. This mirrors the backend's "rerouting = recomputing" design (see Phase 3 notes above); no new endpoint was invented.
+- **SVG layout is derived, not hard-coded**: `GraphVisualizer` computes a projection from the min/max of `node.x`/`node.y` returned by the API, so it works unchanged for any grid size the backend returns. Node radius and grid dimensions (`rows`/`cols`, not present in `GraphOut`) are *inferred* from the count of distinct x/y coordinate values — a deliberate choice to avoid needing a backend contract change just for cosmetic sizing.
+- **Directed road pairs are rendered as offset parallel lines** (small perpendicular offset, sign based on `source < destination`) rather than one line per physical edge, because `Graph`/`GraphOut` keeps the two directions of a bidirectional road as independent entries that can have different congestion/closed state (see Phase 3 design notes) — overlapping them into one line would hide that.
+- **Click-to-select a road in the SVG is wired to the same `selectedRoad` state as the `TrafficControls` dropdown** (bidirectional sync), satisfying the "allow clicking a road if practical" requirement without duplicating selection state.
+- **Congestion levels are a client-side constant** (`src/congestion.js`, mirrors `CONGESTION_LEVELS` in `backend/app/models.py`) because the `/traffic/update` API only accepts a raw `multiplier` by design (Phase 4 decision, kept the contract minimal) — resolving level→multiplier client-side avoids an API change.
+- **`RouteResponse.cost === null`** (unreachable) is handled explicitly in `MetricsPanel` — shows a clear message instead of `NaN`/blank numeric fields, matching the requirement.
+- API client (`src/api.js`) distinguishes network failure (fetch threw — "cannot reach backend") from HTTP error responses, and unpacks both plain-string `detail` (404s) and Pydantic's validation-error-array `detail` (422s) into a readable message; `App.jsx` surfaces every failure in a dismissible error banner — nothing is swallowed.
+- **Verified with Playwright** (headless Chromium, installed to a scratch dir, not a project dependency) driving the actual running dev server end-to-end: graph render (100 nodes/360 directed roads for a 10x10 grid), route computed and highlighted, road closed → route visibly rerouted (cost 0.7501h → 0.7707h) with the closed road rendered dashed, reopened → dashes cleared, algorithm switched to A* → same optimal cost recovered (0.7501h). Zero browser console errors across the run. Screenshots taken at each step.
+
 ## Status
 - **Phase 1 (verified by user, 20/20 tests):** graph model, road model, synthetic grid generator, manual Dijkstra.
 - **Phase 2 (verified by user, 35/35 tests):** manual A*, admissible/consistent heuristic, Dijkstra-vs-A* correctness tests including a randomized multi-pair property test, congestion-multiplier >= 1.0 invariant enforced and tested.
 - **Phase 3 (verified by user, 55/55 tests):** `services/traffic.py` (congestion updates + close/open with validation), `services/routing.py` (algorithm dispatch), scenario tests proving congestion changes the selected route, closures are avoided, reopening restores the better route, and Dijkstra/A* still agree after traffic+closure changes applied via the service layer.
-- **Phase 4 (done, awaiting user test confirmation):** FastAPI app with all 6 endpoints, Pydantic request/response schemas, HTTP error handling, 19 new API tests via `TestClient`. 74 pytest tests passing total.
-- Phase 5: React frontend — not started.
+- **Phase 4 (verified by user, 74/74 tests):** FastAPI app with all 6 endpoints, Pydantic request/response schemas, HTTP error handling, 19 API tests via `TestClient`.
+- **Phase 5 (done, awaiting user verification):** React/Vite single-page frontend — graph generation, source/destination/algorithm selection, route computation + SVG visualization, traffic simulation, road close/reopen, live rerouting. No backend code changed. Verified end-to-end with a headless-browser (Playwright) smoke run; backend's 74 pytest tests re-confirmed passing.
 - Phase 6: benchmarks, final tests, README — not started.
 
 ## Not in scope (explicit)
