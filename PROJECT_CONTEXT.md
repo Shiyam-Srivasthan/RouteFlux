@@ -28,12 +28,18 @@ backend/
       common.py         # RouteResult, reconstruct_path (shared by dijkstra/astar)
       dijkstra.py        # dijkstra(graph, source, destination) -> RouteResult
       astar.py           # astar(graph, source, destination) -> RouteResult
+    services/
+      __init__.py
+      traffic.py          # update_congestion, update_congestion_by_level, close_road, open_road
+      routing.py          # compute_route(graph, source, destination, algorithm) dispatch
   tests/
     test_graph.py
     test_generator.py
     test_dijkstra.py
     test_astar.py
     test_algorithm_comparison.py   # Dijkstra vs A* equality, incl. randomized property test
+    test_traffic_service.py         # services/traffic.py unit tests
+    test_rerouting.py                # scenario tests: congestion flips route, closure/reopen, agreement after changes
   requirements.txt      # pytest
   pytest.ini             # pythonpath = . (so `app.*` imports resolve)
 ```
@@ -54,10 +60,15 @@ backend/
 - Proof sketch lives as a docstring in `astar.py`.
 - **`congestion_multiplier` is constrained to `>= 1.0`**, enforced in both `Road.__post_init__` (models.py) and `Graph.set_congestion` (graph.py). Congestion can only slow a road down from its free-flow time, never speed it up — this is what makes `effective_time >= straight_line/max_speed` hold for every possible traffic state, which the admissibility proof above depends on. A value below 1.0 raises `ValueError`.
 
+### Rerouting model (Phase 3) — key idea
+- There is **no separate rerouting algorithm**. Dijkstra and A* always recompute from the graph's current state (open/closed flags, congestion multipliers) with no caching between calls. "Rerouting" is simply calling `services/routing.compute_route()` again after `services/traffic.py` mutates the graph — the recomputation itself is the reroute.
+- `services/traffic.py` is a thin validating wrapper over `Graph.set_congestion` / `close_road` / `open_road`. Because roads are directed, all three take a `bidirectional: bool = False` param that also mirrors the change onto the reverse road (if one exists) — default is directional-only, matching the underlying `Graph` API; set `bidirectional=True` for "close this physical road both ways" semantics.
+- `services/routing.py` exposes `compute_route(graph, source, destination, algorithm="dijkstra"|"astar")` — a dispatch table (`ALGORITHMS`), nothing more.
+
 ## Status
 - **Phase 1 (verified by user, 20/20 tests):** graph model, road model, synthetic grid generator, manual Dijkstra.
-- **Phase 2 (done, awaiting user test confirmation):** manual A*, admissible/consistent heuristic, Dijkstra-vs-A* correctness tests including a randomized multi-pair property test, congestion-multiplier >= 1.0 invariant enforced and tested. 35 pytest tests passing total.
-- Phase 3: dynamic traffic / closures / rerouting service layer — not started (Graph already supports the primitives; services/ layer not built).
+- **Phase 2 (verified by user, 35/35 tests):** manual A*, admissible/consistent heuristic, Dijkstra-vs-A* correctness tests including a randomized multi-pair property test, congestion-multiplier >= 1.0 invariant enforced and tested.
+- **Phase 3 (done, awaiting user test confirmation):** `services/traffic.py` (congestion updates + close/open with validation), `services/routing.py` (algorithm dispatch), scenario tests proving congestion changes the selected route, closures are avoided, reopening restores the better route, and Dijkstra/A* still agree after traffic+closure changes applied via the service layer. 55 pytest tests passing total.
 - Phase 4: FastAPI endpoints — not started.
 - Phase 5: React frontend — not started.
 - Phase 6: benchmarks, final tests, README — not started.

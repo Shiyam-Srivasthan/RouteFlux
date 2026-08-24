@@ -15,10 +15,12 @@
 - [x] Congestion-multiplier `>= 1.0` invariant enforced in `Road.__post_init__` and `Graph.set_congestion` (was previously only `> 0`, which could have broken A* admissibility); covered by 2 new tests in `test_graph.py`
 - [x] 35/35 pytest tests passing (verified breakdown: test_graph 9, test_generator 5, test_dijkstra 8, test_astar 8, test_algorithm_comparison 5)
 
-## Phase 3 — Dynamic traffic & rerouting
-- [ ] `services/traffic.py`: traffic update / close / reopen orchestration (thin wrapper over Graph methods + validation)
-- [ ] `services/routing.py`: route(graph, source, destination, algorithm) dispatch
-- [ ] Tests: traffic change alters best route, closed-road avoidance, reopening restores route, alternate route after closure
+## Phase 3 — Dynamic traffic & rerouting (DONE, awaiting user verification)
+- [x] `services/traffic.py`: `update_congestion`, `update_congestion_by_level`, `close_road`, `open_road` — thin wrappers over `Graph` methods (validation already lives there), each with optional `bidirectional` mirroring
+- [x] `services/routing.py`: `compute_route(graph, source, destination, algorithm)` dispatch over `{"dijkstra", "astar"}`
+- [x] Tests (`test_traffic_service.py`, 9): congestion update/validation, level presets, close/open, bidirectional mirroring, missing-road errors
+- [x] Tests (`test_rerouting.py`, 11): baseline cheaper-path selection, congestion change flips selected route, closed road avoided, reopening restores cheaper route, closure-with-no-alternative reports unreachable, unknown-algorithm error, Dijkstra/A* agreement after combined traffic+closure changes via the service layer — parametrized over both algorithms where relevant
+- [x] 55/55 pytest tests passing (35 prior + 20 new)
 
 ## Phase 4 — FastAPI
 - [ ] `models.py` pydantic request/response schemas (or api/schemas.py) — separate from domain dataclasses
@@ -37,4 +39,4 @@
 - [ ] Final README, cleanup
 
 ## Next step
-Waiting on user to run Phase 2 verification commands before starting Phase 3.
+Waiting on user to run Phase 3 verification commands before starting Phase 4.
