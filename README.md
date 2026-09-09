@@ -157,3 +157,8 @@ python -m pytest -v
 - **Simulated, not predicted, traffic.** Congestion is a value you set directly (via the UI or API); there's no traffic model or forecasting.
 - **Single in-memory graph.** The backend holds exactly one `Graph` per process, in memory, with no persistence — restarting the server loses all state, and it isn't safe for concurrent multi-user editing.
 - **The frontend only visualizes small graphs** (grids up to roughly 20×20, e.g. the default 10×10). Large graphs are exclusively a benchmark workload — the SVG visualizer was never exercised at those sizes and isn't intended to be.
+
+## Author
+
+**Shiyam Srivasthan**  
+GitHub: [@Shiyam-Srivasthan](https://github.com/Shiyam-Srivasthan)
